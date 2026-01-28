@@ -1,39 +1,45 @@
-PRAGMA foreign_keys = ON;
-
 -- =========================
--- TABLES (create if missing)
+-- USERS
 -- =========================
-
 CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
+  id VARCHAR(50) PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
   password TEXT NOT NULL,
-  role TEXT NOT NULL CHECK(role IN ('admin','user')),
-  username TEXT,
-  blocked_until TEXT
+  role VARCHAR(10) NOT NULL CHECK (role IN ('admin','user')),
+  username VARCHAR(100),
+  blocked_until TIMESTAMP
 );
 
+-- =========================
+-- CONTENTS
+-- =========================
 CREATE TABLE IF NOT EXISTS contents (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id SERIAL PRIMARY KEY,
   title TEXT NOT NULL,
   body TEXT NOT NULL,
   media TEXT,
   media_original_name TEXT,
   media_mime TEXT,
-  author TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS content_views (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  content_id INTEGER NOT NULL,
-  viewer_email TEXT NOT NULL,
-  viewed_at TEXT DEFAULT (datetime('now')),
-  FOREIGN KEY (content_id) REFERENCES contents(id) ON DELETE CASCADE
+  author VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =========================
--- RESET USERS (your new list)
+-- CONTENT VIEWS
+-- =========================
+CREATE TABLE IF NOT EXISTS content_views (
+  id SERIAL PRIMARY KEY,
+  content_id INTEGER NOT NULL,
+  viewer_email VARCHAR(255) NOT NULL,
+  viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_content
+    FOREIGN KEY (content_id)
+    REFERENCES contents(id)
+    ON DELETE CASCADE
+);
+
+-- =========================
+-- RESET USERS
 -- =========================
 DELETE FROM users;
 

@@ -1,285 +1,157 @@
 const express = require("express");
-const sqlite3 = require("sqlite3").verbose();
 const multer = require("multer");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
+const pool = require("./db");
 
 const app = express();
 app.use(express.json());
 app.use(cors());
-app.use(express.static("."));
+app.use(express.static(__dirname));
 
+// ---------- UPLOADS ----------
 const UPLOAD_DIR = path.join(__dirname, "uploads");
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR);
-
 app.use("/uploads", express.static(UPLOAD_DIR));
-
-// ---------- DATABASE ----------
-const db = new sqlite3.Database("./database.db");
-
-// Run db.sql every start (keeps schema + resets user list as you requested)
-const sql = fs.readFileSync("./db.sql", "utf8");
-db.exec(sql);
 
 // ---------- HELPERS ----------
 function isAdminEmail(email) {
   return email === "admin@gmail.com";
 }
 
-function nowISO() {
-  return new Date().toISOString();
-}
-
-// ---------- MULTER (keep file extension) ----------
+// ---------- MULTER ----------
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => {
+  destination: (_, __, cb) => cb(null, UPLOAD_DIR),
+  filename: (_, file, cb) => {
     const ext = path.extname(file.originalname || "");
-    const safeExt = ext.slice(0, 12);
-    const name = Date.now() + "-" + Math.round(Math.random() * 1e9) + safeExt;
+    const name = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
     cb(null, name);
   }
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 25 * 1024 * 1024 } // 25MB
+  limits: { fileSize: 25 * 1024 * 1024 }
 });
 
 // ---------- LOGIN ----------
-app.post("/login", (req, res) => {
-  const { email, password } = req.body;
+app.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-  db.get(
-    "SELECT * FROM users WHERE email=? AND password=?",
-    [email, password],
-    (err, user) => {
-      if (err) return res.status(500).send("DB error");
-      if (!user) return res.status(401).send("Invalid login");
+    const result = await pool.query(
+      "SELECT * FROM users WHERE email=$1 AND password=$2",
+      [email, password]
+    );
 
-      // blocked check
-      if (user.blocked_until) {
-        const blockedUntil = new Date(user.blocked_until).getTime();
-        if (!Number.isNaN(blockedUntil) && blockedUntil > Date.now()) {
-          return res
-            .status(403)
-            .send(`Blocked until ${user.blocked_until}`);
-        }
-      }
-
-      return res.send({
-        email: user.email,
-        role: user.role,
-        username: user.username || ""
-      });
+    if (result.rows.length === 0) {
+      return res.status(401).send("Invalid login");
     }
-  );
+
+    const user = result.rows[0];
+
+    if (user.blocked_until && new Date(user.blocked_until) > new Date()) {
+      return res.status(403).send(`Blocked until ${user.blocked_until}`);
+    }
+
+    res.send({
+      email: user.email,
+      role: user.role,
+      username: user.username || ""
+    });
+  } catch (err) {
+    console.error("LOGIN ERROR:", err);
+    res.status(500).send("DB error");
+  }
 });
 
 // ---------- GET CONTENT ----------
-app.get("/content", (req, res) => {
-  db.all("SELECT * FROM contents ORDER BY datetime(created_at) DESC", [], (e, rows) => {
-    if (e) return res.status(500).send("DB error");
-    res.send(rows);
-  });
+app.get("/content", async (_, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM contents ORDER BY created_at DESC"
+    );
+    res.send(result.rows);
+  } catch (err) {
+    console.error("GET CONTENT ERROR:", err);
+    res.status(500).send("DB error");
+  }
 });
 
-// ---------- POST CONTENT (ADMIN ONLY) ----------
-app.post("/content", upload.single("media"), (req, res) => {
-  const { title, body, author } = req.body;
+// ---------- POST CONTENT ----------
+app.post("/content", upload.single("media"), async (req, res) => {
+  try {
+    const { title, body, author } = req.body;
+    if (!isAdminEmail(author)) return res.status(403).send("Admin only");
 
-  if (!isAdminEmail(author)) return res.status(403).send("Admin only");
+    const media = req.file ? req.file.filename : null;
+    const media_original_name = req.file ? req.file.originalname : null;
+    const media_mime = req.file ? req.file.mimetype : null;
 
-  const media = req.file ? req.file.filename : null;
-  const media_original_name = req.file ? req.file.originalname : null;
-  const media_mime = req.file ? req.file.mimetype : null;
+    await pool.query(
+      `INSERT INTO contents
+       (title, body, media, media_original_name, media_mime, author)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [title, body, media, media_original_name, media_mime, author]
+    );
 
-  db.run(
-    `INSERT INTO contents (title,body,media,media_original_name,media_mime,author,created_at)
-     VALUES (?,?,?,?,?,?,?)`,
-    [title || "", body || "", media, media_original_name, media_mime, author, nowISO()],
-    (err2) => {
-      if (err2) return res.status(500).send("DB error");
-      res.send("Posted");
-    }
-  );
+    res.send("Posted");
+  } catch (err) {
+    console.error("POST CONTENT ERROR:", err);
+    res.status(500).send("DB error");
+  }
 });
 
-// ---------- UPDATE CONTENT (ADMIN ONLY) ----------
-app.put("/content/:id", (req, res) => {
-  const { title, body, author } = req.body;
-  if (!isAdminEmail(author)) return res.status(403).send("Admin only");
+// ---------- UPDATE CONTENT ----------
+app.put("/content/:id", async (req, res) => {
+  try {
+    const { title, body, author } = req.body;
+    if (!isAdminEmail(author)) return res.status(403).send("Admin only");
 
-  db.run(
-    "UPDATE contents SET title=?, body=? WHERE id=?",
-    [title || "", body || "", req.params.id],
-    (err) => {
-      if (err) return res.status(500).send("DB error");
-      res.send("Updated");
-    }
-  );
+    await pool.query(
+      "UPDATE contents SET title=$1, body=$2 WHERE id=$3",
+      [title, body, req.params.id]
+    );
+
+    res.send("Updated");
+  } catch (err) {
+    console.error("UPDATE CONTENT ERROR:", err);
+    res.status(500).send("DB error");
+  }
 });
 
-// ---------- DELETE CONTENT (ADMIN ONLY) ----------
-app.delete("/content/:id", (req, res) => {
-  const { author } = req.body;
-  if (!isAdminEmail(author)) return res.status(403).send("Admin only");
+// ---------- DELETE CONTENT ----------
+app.delete("/content/:id", async (req, res) => {
+  try {
+    const { author } = req.body;
+    if (!isAdminEmail(author)) return res.status(403).send("Admin only");
 
-  // remove file if exists
-  db.get("SELECT media FROM contents WHERE id=?", [req.params.id], (e, row) => {
-    if (row && row.media) {
-      const fp = path.join(UPLOAD_DIR, row.media);
+    const fileRes = await pool.query(
+      "SELECT media FROM contents WHERE id=$1",
+      [req.params.id]
+    );
+
+    if (fileRes.rows.length && fileRes.rows[0].media) {
+      const fp = path.join(UPLOAD_DIR, fileRes.rows[0].media);
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
     }
-    db.run("DELETE FROM contents WHERE id=?", [req.params.id], (err) => {
-      if (err) return res.status(500).send("DB error");
-      res.send("Deleted");
-    });
-  });
-});
 
-// ---------- VIEW LOGGING ----------
-app.post("/content/:id/view", (req, res) => {
-  const { viewer_email } = req.body;
-  const contentId = req.params.id;
-
-  if (!viewer_email) return res.status(400).send("viewer_email required");
-
-  db.run(
-    "INSERT INTO content_views (content_id, viewer_email, viewed_at) VALUES (?,?,?)",
-    [contentId, viewer_email, nowISO()],
-    (err) => {
-      if (err) return res.status(500).send("DB error");
-      res.send("Logged");
-    }
-  );
-});
-
-// ---------- GET VIEWS (ADMIN ONLY) ----------
-app.get("/content/:id/views", (req, res) => {
-  const admin = req.query.admin;
-  if (!isAdminEmail(admin)) return res.status(403).send("Admin only");
-
-  db.all(
-    "SELECT viewer_email, viewed_at FROM content_views WHERE content_id=? ORDER BY datetime(viewed_at) DESC",
-    [req.params.id],
-    (err, rows) => {
-      if (err) return res.status(500).send("DB error");
-      res.send(rows);
-    }
-  );
-});
-
-// ---------- USERS LIST (ADMIN ONLY) ----------
-app.get("/users", (req, res) => {
-  const admin = req.query.admin;
-  if (!isAdminEmail(admin)) return res.status(403).send("Admin only");
-
-  db.all(
-    "SELECT id, email, username, role, blocked_until FROM users ORDER BY role DESC, email ASC",
-    [],
-    (err, rows) => {
-      if (err) return res.status(500).send("DB error");
-      res.send(rows);
-    }
-  );
-});
-
-// ---------- CREATE USER (ADMIN ONLY) ----------
-app.post("/users", (req, res) => {
-  const { admin, id, email, password, role, username } = req.body;
-  if (!isAdminEmail(admin)) return res.status(403).send("Admin only");
-
-  if (!id || !email || !password || !role) {
-    return res.status(400).send("Missing fields");
+    await pool.query("DELETE FROM contents WHERE id=$1", [req.params.id]);
+    res.send("Deleted");
+  } catch (err) {
+    console.error("DELETE CONTENT ERROR:", err);
+    res.status(500).send("DB error");
   }
-
-  db.run(
-    "INSERT INTO users (id, email, password, role, username, blocked_until) VALUES (?,?,?,?,?,NULL)",
-    [id, email, password, role, username || id],
-    (err) => {
-      if (err) return res.status(400).send("User insert failed (duplicate?)");
-      res.send("User created");
-    }
-  );
 });
 
-// ---------- UPDATE USER (ADMIN ONLY) ----------
-app.put("/users/:id", (req, res) => {
-  const { admin, newUsername, newPassword } = req.body;
-  if (!isAdminEmail(admin)) return res.status(403).send("Admin only");
-
-  // Build query dynamically
-  const updates = [];
-  const params = [];
-
-  if (newUsername && newUsername.trim()) {
-    updates.push("username=?");
-    params.push(newUsername.trim());
-  }
-  if (newPassword && newPassword.trim()) {
-    updates.push("password=?");
-    params.push(newPassword.trim());
-  }
-
-  if (updates.length === 0) return res.status(400).send("Nothing to update");
-
-  params.push(req.params.id);
-
-  db.run(
-    `UPDATE users SET ${updates.join(", ")} WHERE id=?`,
-    params,
-    (err) => {
-      if (err) return res.status(500).send("DB error");
-      res.send("Updated");
-    }
-  );
+// ---------- ROOT ----------
+app.get("/", (_, res) => {
+  res.sendFile(path.join(__dirname, "page.html"));
 });
 
-// ---------- BLOCK USER (ADMIN ONLY) ----------
-app.post("/users/:id/block", (req, res) => {
-  const { admin, minutes } = req.body;
-  if (!isAdminEmail(admin)) return res.status(403).send("Admin only");
-
-  const mins = Number(minutes || 0);
-  if (!mins || mins <= 0) return res.status(400).send("minutes required");
-
-  const until = new Date(Date.now() + mins * 60 * 1000).toISOString();
-
-  db.run(
-    "UPDATE users SET blocked_until=? WHERE id=?",
-    [until, req.params.id],
-    (err) => {
-      if (err) return res.status(500).send("DB error");
-      res.send({ blocked_until: until });
-    }
-  );
-});
-
-// ---------- UNBLOCK USER (ADMIN ONLY) ----------
-app.post("/users/:id/unblock", (req, res) => {
-  const { admin } = req.body;
-  if (!isAdminEmail(admin)) return res.status(403).send("Admin only");
-
-  db.run(
-    "UPDATE users SET blocked_until=NULL WHERE id=?",
-    [req.params.id],
-    (err) => {
-      if (err) return res.status(500).send("DB error");
-      res.send("Unblocked");
-    }
-  );
-});
-
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'page.html'));
-});
-
-
+// ---------- PORT ----------
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`Server running on port ${PORT}`)
+);
