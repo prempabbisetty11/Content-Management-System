@@ -1,7 +1,7 @@
 var app = angular.module("cmsApp", []);
 
 app.controller("CmsController", function ($scope, $http) {
-  const API = "http://localhost:3000";
+  const API = window.location.origin;
 
   $scope.isLoggedIn = false;
   $scope.isAdmin = false;
