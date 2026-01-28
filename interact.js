@@ -104,7 +104,12 @@ app.controller("CmsController", function ($scope, $http) {
     fd.append("title", $scope.content.title || "");
     fd.append("body", $scope.content.body || "");
     fd.append("author", $scope.user.email);
-    fd.append("departments", $scope.selectedDepartments.length ? $scope.selectedDepartments : "ALL");
+    const deptPayload =
+      $scope.selectedDepartments && $scope.selectedDepartments.length
+        ? $scope.selectedDepartments.join(",")
+        : "ALL";
+
+    fd.append("departments", deptPayload);
 
     const fileEl = document.getElementById("media");
     if (fileEl && fileEl.files && fileEl.files[0]) fd.append("media", fileEl.files[0]);
@@ -115,6 +120,7 @@ app.controller("CmsController", function ($scope, $http) {
         $scope.content = {};
         if (fileEl) fileEl.value = "";
         $scope.selectedDepartments = [];
+        $scope.deptAll = false;
         $scope.fetchContents();
       })
       .catch((e) => alert("Upload/Publish failed: " + (e.data || "")));

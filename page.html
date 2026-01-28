@@ -155,6 +155,14 @@
         <b>Uploaded at:</b> {{c.created_at}}
       </p>
 
+      <!-- DEPARTMENT CHIPS -->
+      <div style="margin-top:6px;">
+        <span ng-repeat="d in c.department.split(',')"
+              class="dept-chip {{d.toLowerCase()}}">
+          {{d}}
+        </span>
+      </div>
+
       <!-- MEDIA -->
       <div ng-if="c.media" class="media-box">
 
@@ -237,9 +245,62 @@
       <button type="button" ng-click="closePanel()">Close</button>
     </div>
 
+
     <button type="button" ng-click="loadUsers()" style="margin:10px 0;">
       Refresh Users
     </button>
+
+    <!-- SEARCH USER BY ID -->
+    <div class="admin-search">
+      <input type="text"
+             placeholder="Search User by ID"
+             ng-model="searchUserId" />
+
+      <button type="button" ng-click="searchUser()">🔍</button>
+    </div>
+
+    <p class="error-msg" ng-if="searchErr">{{searchErr}}</p>
+
+    <!-- SEARCH RESULT -->
+    <div class="content-card" ng-if="searchedUser">
+      <h4>Search Result</h4>
+
+      <p><b>ID:</b> {{searchedUser.id}}</p>
+      <p><b>Email:</b> {{searchedUser.email}}</p>
+      <p><b>Username:</b> {{searchedUser.username}}</p>
+      <p><b>Department:</b> {{searchedUser.department}}</p>
+      <p><b>Role:</b> {{searchedUser.role}}</p>
+
+      <p>
+        <b>Status:</b>
+        <span ng-if="!searchedUser.blocked_until">Active</span>
+        <span ng-if="searchedUser.blocked_until">
+          Blocked until {{searchedUser.blocked_until}}
+        </span>
+      </p>
+
+      <hr style="margin:10px 0;" />
+
+      <input placeholder="New Username"
+             ng-model="searchedUser.newUsername" />
+
+      <input type="password"
+             placeholder="New Password"
+             ng-model="searchedUser.newPassword" />
+
+      <button type="button" ng-click="updateUser(searchedUser)">
+        Update User
+      </button>
+
+      <br /><br />
+
+      <input type="number"
+             placeholder="Block minutes"
+             ng-model="searchedUser.blockMinutes" />
+
+      <button type="button" ng-click="blockUser(searchedUser)">Block</button>
+      <button type="button" ng-click="unblockUser(searchedUser)">Unblock</button>
+    </div>
 
     <div class="content-card" ng-repeat="u in users">
       <p><b>ID:</b> {{u.id}}</p>
