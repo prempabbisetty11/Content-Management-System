@@ -55,13 +55,13 @@ app.post("/login", async (req, res) => {
       return res.status(403).send(`Blocked until ${user.blocked_until}`);
     }
 
-    res.send({
+    res.json({
       email: user.email,
       role: user.role,
       username: user.username || ""
     });
   } catch (err) {
-    console.error("LOGIN ERROR:", err);
+    console.error("LOGIN DB ERROR >>>", err.message);
     res.status(500).send("DB error");
   }
 });
@@ -83,14 +83,17 @@ app.get("/content", async (_, res) => {
 app.post("/content", upload.single("media"), async (req, res) => {
   try {
     const { title, body, author } = req.body;
-    if (!isAdminEmail(author)) return res.status(403).send("Admin only");
+
+    if (author !== "admin@gmail.com") {
+      return res.status(403).send("Admin only");
+    }
 
     const media = req.file ? req.file.filename : null;
     const media_original_name = req.file ? req.file.originalname : null;
     const media_mime = req.file ? req.file.mimetype : null;
 
     await pool.query(
-      `INSERT INTO contents
+      `INSERT INTO contents 
        (title, body, media, media_original_name, media_mime, author)
        VALUES ($1,$2,$3,$4,$5,$6)`,
       [title, body, media, media_original_name, media_mime, author]
@@ -98,7 +101,7 @@ app.post("/content", upload.single("media"), async (req, res) => {
 
     res.send("Posted");
   } catch (err) {
-    console.error("POST CONTENT ERROR:", err);
+    console.error("CONTENT DB ERROR >>>", err.message);
     res.status(500).send("DB error");
   }
 });

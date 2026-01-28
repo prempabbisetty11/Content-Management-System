@@ -1,7 +1,7 @@
 {
   "name": "content-management-system",
   "version": "1.0.0",
-  "description": "A Content Management System with role-based authentication and media uploads",
+  "description": "Content Management System with PostgreSQL and Render deployment",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
@@ -16,5 +16,4 @@
     "multer": "^1.4.5-lts.1",
     "cors": "^2.8.5"
   }
-  
 }
