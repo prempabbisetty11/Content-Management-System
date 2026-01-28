@@ -67,14 +67,40 @@ app.post("/login", async (req, res) => {
 });
 
 // ---------- GET CONTENT ----------
-app.get("/content", async (_, res) => {
+app.get("/content", async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT * FROM contents ORDER BY created_at DESC"
+    const { email, department } = req.query;
+
+    if (!email || !department) {
+      return res.status(400).send("email and department required");
+    }
+
+    // Admin recognize
+    if (isAdminEmail(email) || department === "ALL") {
+      const all = await pool.query(
+        "SELECT * FROM contents ORDER BY created_at DESC"
+      );
+      return res.send(all.rows);
+    }
+
+    // Department filtering for users
+    const filtered = await pool.query(
+      `SELECT * FROM contents
+       WHERE department = 'ALL'
+          OR department = $1
+          OR department LIKE $2
+          OR department LIKE $3
+       ORDER BY created_at DESC`,
+      [
+        department,
+        department + ",%",
+        "%," + department
+      ]
     );
-    res.send(result.rows);
+
+    res.send(filtered.rows);
   } catch (err) {
-    console.error("GET CONTENT ERROR:", err);
+    console.error("GET CONTENT ERROR:", err.message);
     res.status(500).send("DB error");
   }
 });
@@ -82,10 +108,23 @@ app.get("/content", async (_, res) => {
 // ---------- POST CONTENT ----------
 app.post("/content", upload.single("media"), async (req, res) => {
   try {
-    const { title, body, author } = req.body;
+    const { title, body, author, departments } = req.body;
 
-    if (author !== "admin@gmail.com") {
+    if (!isAdminEmail(author)) {
       return res.status(403).send("Admin only");
+    }
+
+    // Normalize departments:
+    // - "ALL" -> ALL
+    // - array -> comma-separated
+    // - single string -> as-is
+    let deptValue = "ALL";
+    if (departments) {
+      if (Array.isArray(departments)) {
+        deptValue = departments.join(",");
+      } else {
+        deptValue = String(departments);
+      }
     }
 
     const media = req.file ? req.file.filename : null;
@@ -94,9 +133,9 @@ app.post("/content", upload.single("media"), async (req, res) => {
 
     await pool.query(
       `INSERT INTO contents 
-       (title, body, media, media_original_name, media_mime, author)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [title, body, media, media_original_name, media_mime, author]
+       (title, body, media, media_original_name, media_mime, author, department)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [title, body, media, media_original_name, media_mime, author, deptValue]
     );
 
     res.send("Posted");

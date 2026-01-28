@@ -8,6 +8,8 @@ app.controller("CmsController", function ($scope, $http) {
 
   $scope.contents = [];
   $scope.content = {};
+  $scope.departments = ["CSE", "ACSE", "ECE", "ALL"];
+  $scope.selectedDepartments = [];
   $scope.login = { type: "" };
 
   $scope.loginMessage = "";
@@ -70,6 +72,7 @@ app.controller("CmsController", function ($scope, $http) {
       .then((res) => {
         $scope.user = res.data;
         $scope.isAdmin = res.data.role === "admin";
+        $scope.user.department = res.data.department || "ALL";
         $scope.isLoggedIn = true;
         $scope.loginMessage = "Login successful";
         $scope.fetchContents();
@@ -82,7 +85,14 @@ app.controller("CmsController", function ($scope, $http) {
 
   // ---------- Content ----------
   $scope.fetchContents = function () {
-    $http.get(API + "/content").then((res) => {
+    if (!$scope.user) return;
+
+    $http.get(API + "/content", {
+      params: {
+        email: $scope.user.email,
+        department: $scope.user.department
+      }
+    }).then((res) => {
       $scope.contents = res.data;
     });
   };
@@ -94,6 +104,7 @@ app.controller("CmsController", function ($scope, $http) {
     fd.append("title", $scope.content.title || "");
     fd.append("body", $scope.content.body || "");
     fd.append("author", $scope.user.email);
+    fd.append("departments", $scope.selectedDepartments.length ? $scope.selectedDepartments : "ALL");
 
     const fileEl = document.getElementById("media");
     if (fileEl && fileEl.files && fileEl.files[0]) fd.append("media", fileEl.files[0]);
@@ -103,6 +114,7 @@ app.controller("CmsController", function ($scope, $http) {
       .then(() => {
         $scope.content = {};
         if (fileEl) fileEl.value = "";
+        $scope.selectedDepartments = [];
         $scope.fetchContents();
       })
       .catch((e) => alert("Upload/Publish failed: " + (e.data || "")));
@@ -162,6 +174,10 @@ app.controller("CmsController", function ($scope, $http) {
 
   $scope.openMedia = function (c) {
     if (!c || !c.media) return;
+
+    // log view once per open
+    $scope.logView(c.id);
+
     window.open($scope.mediaUrl(c.media), "_blank");
   };
 

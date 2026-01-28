@@ -7,6 +7,14 @@
 
   <link rel="stylesheet" href="style.css" />
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+<style>
+  .dept-select {
+    margin: 14px 0;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+  }
+</style>
 </head>
 
 <body ng-controller="CmsController">
@@ -92,6 +100,37 @@
   <div class="content-form" ng-if="isAdmin">
     <input placeholder="Title" ng-model="content.title" />
     <textarea placeholder="Write content..." ng-model="content.body"></textarea>
+
+    <!-- DEPARTMENT SELECTION -->
+    <div class="dept-select">
+      <p style="margin:10px 0 6px;"><b>Share with Departments</b></p>
+
+      <label style="display:block; margin-bottom:6px;">
+        <input type="checkbox"
+               ng-model="deptAll"
+               ng-change="deptAll ? selectedDepartments=['ALL'] : selectedDepartments=[]">
+        ALL Departments
+      </label>
+
+      <label ng-repeat="d in departments"
+             ng-if="d !== 'ALL'"
+             style="display:block; margin-bottom:6px;">
+        <input type="checkbox"
+               ng-checked="selectedDepartments.indexOf(d) !== -1"
+               ng-disabled="deptAll"
+               ng-click="
+                 selectedDepartments.indexOf(d) === -1
+                   ? selectedDepartments.push(d)
+                   : selectedDepartments.splice(selectedDepartments.indexOf(d),1)
+               ">
+        {{d}}
+      </label>
+
+      <small style="opacity:0.7;">
+        • Select one department, multiple departments, or ALL
+      </small>
+    </div>
+
     <input type="file" id="media" accept="image/*,video/*,audio/*" />
 
     <button type="button" ng-click="content.id ? updateContent() : saveContent()">

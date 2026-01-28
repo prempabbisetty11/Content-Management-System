@@ -511,3 +511,117 @@
     }
   }
 
+
+
+/* =========================
+   Department Selector (Admin)
+========================= */
+.dept-select {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+  animation: fadeInUp 420ms ease;
+}
+
+.dept-select label {
+  cursor: pointer;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.dept-select input[type="checkbox"] {
+  accent-color: rgb(140, 180, 255);
+  transform: scale(1.15);
+  margin-right: 8px;
+}
+
+/* =========================
+   Content Card Hover Glow
+========================= */
+.content-card {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.content-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow:
+    0 28px 60px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(140,180,255,0.25);
+}
+
+/* =========================
+   View Count Badge
+========================= */
+.view-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  color: rgba(255,255,255,0.92);
+  background: linear-gradient(
+    135deg,
+    rgba(110,168,255,0.55),
+    rgba(160,110,255,0.45)
+  );
+  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+}
+
+/* =========================
+   Admin Settings Search Bar
+========================= */
+.admin-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 18px;
+}
+
+.admin-search input {
+  flex: 1;
+}
+
+.admin-search button {
+  padding: 12px 18px;
+  border-radius: 16px;
+  font-size: 18px;
+}
+
+/* =========================
+   Smooth Panel Animation
+========================= */
+.admin-panel,
+.content-form,
+.content-card {
+  animation: fadeInUp 420ms ease both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* =========================
+   Media Hover Effect
+========================= */
+.media-img:hover,
+.media-video:hover {
+  box-shadow:
+    0 30px 70px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(140,180,255,0.35);
+  transform: scale(1.02);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
