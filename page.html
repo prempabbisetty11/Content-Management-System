@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="cmsApp">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Content Management System</title>
+
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+</head>
+
+<body ng-controller="CmsController">
+<header>
+  <h1>Content Management System</h1>
+</header>
+
+<!-- STEP 1: SELECT LOGIN TYPE (BIG CENTER SQUARE BOXES) -->
+<section class="login-box login-type-screen" ng-if="!login.type && !isLoggedIn">
+  <h2 style="text-align:center; margin-bottom:22px;">Select Login Type</h2>
+
+  <div class="login-type-squares">
+    <button type="button" class="login-square" ng-click="login.type='admin'">
+      <div class="login-square-emoji">👨‍💻</div>
+      <div class="login-square-title">Admin Login</div>
+      <div class="login-square-sub">Manage users & announcements</div>
+    </button>
+
+    <button type="button" class="login-square" ng-click="login.type='user'">
+      <div class="login-square-emoji">👤</div>
+      <div class="login-square-title">User Login</div>
+      <div class="login-square-sub">View announcements</div>
+    </button>
+  </div>
+</section>
+
+<!-- STEP 2: LOGIN FORM -->
+<section class="login-box" ng-if="login.type && !isLoggedIn">
+  <h2 style="text-align:center; margin-bottom:15px;">
+    {{ login.type === 'admin' ? 'Admin Login' : 'User Login' }}
+  </h2>
+
+  <input type="email" placeholder="Email" ng-model="login.email" />
+  <input type="password" placeholder="Password" ng-model="login.password" />
+
+  <button type="button" ng-click="loginUser()">Login</button>
+
+  <button type="button"
+          style="margin-top:10px; background:#bdc3c7; color:#2c3e50;"
+          ng-click="login.type=''">
+    ← Back
+  </button>
+
+  <p class="success-msg" ng-if="loginMessage">{{loginMessage}}</p>
+  <p class="error-msg" ng-if="loginError">{{loginError}}</p>
+</section>
+
+<!-- DASHBOARD -->
+<section class="dashboard" ng-if="isLoggedIn">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <h2 style="margin:0;">Dashboard</h2>
+
+    <div class="topbar-right">
+      <!-- MENU ONLY FOR ADMIN -->
+      <div class="menu-wrapper" ng-if="isAdmin">
+        <button class="menu-btn" type="button" ng-click="toggleMenu()">⋮</button>
+
+        <div class="menu-dropdown" ng-if="menuOpen">
+          <button type="button" ng-click="openPanel('addUser')">➕ Add New User</button>
+          <button type="button" ng-click="openPanel('settings')">⚙️ Admin Settings</button>
+        </div>
+      </div>
+
+      <button type="button" class="logout-btn" ng-click="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- ADMIN DASHBOARD -->
+  <div class="admin-panel" ng-if="isAdmin">
+    <h3>Admin Dashboard</h3>
+    <p>Logged in as <b>{{user.email}}</b></p>
+  </div>
+
+  <!-- USER DASHBOARD -->
+  <div class="admin-panel" ng-if="!isAdmin">
+    <h3>User Dashboard</h3>
+    <p>Welcome <b>{{user.email}}</b></p>
+  </div>
+
+  <!-- ADMIN CONTENT FORM -->
+  <div class="content-form" ng-if="isAdmin">
+    <input placeholder="Title" ng-model="content.title" />
+    <textarea placeholder="Write content..." ng-model="content.body"></textarea>
+    <input type="file" id="media" accept="image/*,video/*,audio/*" />
+
+    <button type="button" ng-click="content.id ? updateContent() : saveContent()">
+      {{ content.id ? 'Update' : 'Publish' }}
+    </button>
+
+    <small style="color:#27ae60;">Upload supports image/video/audio</small>
+  </div>
+
+  <!-- CONTENT LIST -->
+  <div class="content-list">
+    <div class="content-card"
+         ng-repeat="c in contents"
+         ng-click="logView(c.id)"
+         style="cursor:pointer;">
+
+      <h4>{{c.title}}</h4>
+      <p>{{c.body}}</p>
+
+      <p style="font-size:13px; opacity:0.8; margin-top:8px;">
+        <b>Uploaded by:</b> {{c.author}} |
+        <b>Uploaded at:</b> {{c.created_at}}
+      </p>
+
+      <!-- MEDIA -->
+      <div ng-if="c.media" class="media-box">
+
+        <img ng-if="isImage(c.media)"
+             ng-src="{{mediaUrl(c.media)}}"
+             class="media-img"
+             ng-click="$event.stopPropagation(); openMedia(c);"
+             alt="uploaded image" />
+
+        <video ng-if="isVideo(c.media)"
+               controls
+               class="media-video"
+               ng-click="$event.stopPropagation(); logView(c.id);">
+          <source ng-attr-src="{{mediaUrl(c.media)}}" />
+        </video>
+
+        <audio ng-if="isAudio(c.media)"
+               controls
+               class="media-audio"
+               ng-click="$event.stopPropagation(); logView(c.id);">
+          <source ng-attr-src="{{mediaUrl(c.media)}}" />
+        </audio>
+
+      </div>
+
+      <!-- ADMIN ACTIONS -->
+      <div ng-if="isAdmin" style="margin-top:10px;">
+        <button type="button" ng-click="$event.stopPropagation(); editContent(c)">Edit</button>
+        <button type="button" ng-click="$event.stopPropagation(); deleteContent(c.id)">Delete</button>
+        <button type="button" ng-click="$event.stopPropagation(); showViews(c)">Views</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW LOGS (ADMIN ONLY) -->
+  <div class="admin-panel" ng-if="isAdmin && viewLogsForContent" style="margin-top:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">Views for: {{viewLogsForContent.title}}</h3>
+      <button type="button" ng-click="closeViews()">Close</button>
+    </div>
+
+    <div class="content-card" ng-if="viewLogs.length === 0">
+      No views yet.
+    </div>
+
+    <div class="content-card" ng-repeat="v in viewLogs">
+      <p><b>Viewer:</b> {{v.viewer_email}}</p>
+      <p><b>Viewed at:</b> {{v.viewed_at}}</p>
+    </div>
+  </div>
+
+  <!-- PANEL: ADD NEW USER -->
+  <div class="admin-panel" ng-if="isAdmin && activePanel==='addUser'" style="margin-top:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">Add New User</h3>
+      <button type="button" ng-click="closePanel()">Close</button>
+    </div>
+
+    <input placeholder="ID (required)" ng-model="newUser.id" />
+    <input placeholder="Username (optional)" ng-model="newUser.username" />
+    <input placeholder="Email" ng-model="newUser.email" />
+    <input type="password" placeholder="Password" ng-model="newUser.password" />
+
+    <select ng-model="newUser.role"
+            style="width:100%; padding:10px; border-radius:8px; border:2px solid rgba(255,255,255,0.18); margin:10px 0; background: rgba(255,255,255,0.08); color: white;">
+      <option value="user">User</option>
+      <option value="admin">Admin</option>
+    </select>
+
+    <button type="button" ng-click="createUser()">Create User</button>
+
+    <p class="success-msg" ng-if="newUserMsg">{{newUserMsg}}</p>
+    <p class="error-msg" ng-if="newUserErr">{{newUserErr}}</p>
+  </div>
+
+  <!-- PANEL: ADMIN SETTINGS -->
+  <div class="admin-panel" ng-if="isAdmin && activePanel==='settings'" style="margin-top:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">Admin Settings</h3>
+      <button type="button" ng-click="closePanel()">Close</button>
+    </div>
+
+    <button type="button" ng-click="loadUsers()" style="margin:10px 0;">
+      Refresh Users
+    </button>
+
+    <div class="content-card" ng-repeat="u in users">
+      <p><b>ID:</b> {{u.id}}</p>
+      <p><b>Email:</b> {{u.email}}</p>
+      <p><b>Username:</b> {{u.username}}</p>
+      <p><b>Role:</b> {{u.role}}</p>
+
+      <p>
+        <b>Status:</b>
+        <span ng-if="!u.blocked_until">Active</span>
+        <span ng-if="u.blocked_until">Blocked until {{u.blocked_until}}</span>
+      </p>
+
+      <hr style="margin:10px 0;" />
+
+      <input placeholder="New Username" ng-model="u.newUsername" />
+      <input type="password" placeholder="New Password" ng-model="u.newPassword" />
+      <button type="button" ng-click="updateUser(u)">Update</button>
+
+      <br /><br />
+
+      <input type="number" placeholder="Block minutes (e.g., 30)" ng-model="u.blockMinutes" />
+      <button type="button" ng-click="blockUser(u)">Block</button>
+      <button type="button" ng-click="unblockUser(u)">Unblock</button>
+    </div>
+  </div>
+
+</section>
+
+<script src="interact.js"></script>
+</body>
+</html>
