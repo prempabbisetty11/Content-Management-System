@@ -1,3 +1,16 @@
+const express = require("express");
+const multer = require("multer");
+const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
+const pool = require("./db");
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+app.use(express.static(__dirname));
+
+
 // ---------- LOG CONTENT VIEW ----------
 app.post("/content/:id/view", async (req, res) => {
   try {
