@@ -133,6 +133,23 @@ app.controller("CmsController", function ($scope, $http) {
     return c && typeof c.view_count === "number" ? c.view_count : 0;
   };
 
+  // ---------- Time display helper ----------
+  $scope.formatTime = function (isoTime) {
+    if (!isoTime) return "";
+
+    const d = new Date(isoTime);
+    if (isNaN(d.getTime())) return isoTime;
+
+    return d.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true
+    });
+  };
+
   $scope.saveContent = function () {
     if (!$scope.isAdmin) return;
 
