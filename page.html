@@ -131,13 +131,13 @@
       </small>
     </div>
 
-    <input type="file" id="media" accept="image/*,video/*,audio/*" />
+    <input type="file" id="media" accept="image/*,video/*,audio/*,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
 
     <button type="button" ng-click="content.id ? updateContent() : saveContent()">
       {{ content.id ? 'Update' : 'Publish' }}
     </button>
 
-    <small style="color:#27ae60;">Upload supports image/video/audio</small>
+    <small style="color:#27ae60;">Upload supports image/video/audio/PDF/Excel</small>
   </div>
 
   <!-- CONTENT LIST -->
@@ -185,6 +185,22 @@
                ng-click="$event.stopPropagation(); logView(c.id);">
           <source ng-attr-src="{{mediaUrl(c.media)}}" />
         </audio>
+
+        <!-- PDF FILE -->
+        <div ng-if="isPDF(c.media)" class="file-box">
+          <p>📄 {{c.media_original_name || c.media}}</p>
+          <a ng-href="{{mediaUrl(c.media)}}" target="_blank">
+            Open PDF
+          </a>
+        </div>
+
+        <!-- EXCEL FILE -->
+        <div ng-if="isExcel(c.media)" class="file-box">
+          <p>📊 {{c.media_original_name || c.media}}</p>
+          <a ng-href="{{mediaUrl(c.media)}}" download>
+            Download Excel
+          </a>
+        </div>
 
       </div>
 

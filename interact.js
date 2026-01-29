@@ -117,6 +117,11 @@ app.controller("CmsController", function ($scope, $http) {
     });
   };
 
+  // ---------- View count helper ----------
+  $scope.getViewCount = function (c) {
+    return c && typeof c.view_count === "number" ? c.view_count : 0;
+  };
+
   $scope.saveContent = function () {
     if (!$scope.isAdmin) return;
 
@@ -198,6 +203,18 @@ app.controller("CmsController", function ($scope, $http) {
     return ["mp3", "wav", "ogg", "m4a"].includes(e);
   };
 
+  $scope.isPDF = function (filename) {
+    return filename && filename.toLowerCase().endsWith(".pdf");
+  };
+
+  $scope.isExcel = function (filename) {
+    return (
+      filename &&
+      (filename.toLowerCase().endsWith(".xls") ||
+       filename.toLowerCase().endsWith(".xlsx"))
+    );
+  };
+
   $scope.openMedia = function (c) {
     if (!c || !c.media) return;
 
@@ -222,6 +239,12 @@ app.controller("CmsController", function ($scope, $http) {
 
   $scope.showViews = function (content) {
     if (!$scope.isAdmin) return;
+
+    // ensure a view is logged when details are opened
+    if (!$scope.isAdmin) {
+      $scope.logView(content.id);
+    }
+
     $scope.viewLogsForContent = content;
     $scope.viewLogs = [];
 
@@ -248,6 +271,8 @@ app.controller("CmsController", function ($scope, $http) {
       .get(API + "/users", { params: { admin: $scope.user.email } })
       .then((res) => {
         $scope.users = res.data;
+        $scope.searchedUser = null;
+        $scope.searchErr = "";
       })
       .catch(() => {
         $scope.users = [];
@@ -323,7 +348,7 @@ app.controller("CmsController", function ($scope, $http) {
         $scope.loadUsers();
       })
       .catch((e) => {
-        $scope.newUserErr = String(e.data || "Create failed");
+        $scope.newUserErr = e && e.data ? String(e.data) : "Create failed";
       });
   };
 
