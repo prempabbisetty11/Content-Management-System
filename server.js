@@ -75,22 +75,35 @@ app.get("/content", async (req, res) => {
       return res.status(400).send("email and department required");
     }
 
-    // Admin recognize
+    // Base query with view count
+    const baseQuery = `
+      SELECT c.*,
+             COALESCE(v.view_count, 0) AS view_count
+      FROM contents c
+      LEFT JOIN (
+        SELECT content_id, COUNT(*) AS view_count
+        FROM content_views
+        GROUP BY content_id
+      ) v ON v.content_id = c.id
+    `;
+
+    // Admin or ALL sees everything
     if (isAdminEmail(email) || department === "ALL") {
       const all = await pool.query(
-        "SELECT * FROM contents ORDER BY created_at DESC"
+        baseQuery + " ORDER BY c.created_at DESC"
       );
       return res.send(all.rows);
     }
 
     // Department filtering for users
     const filtered = await pool.query(
-      `SELECT * FROM contents
-       WHERE department = 'ALL'
-          OR department = $1
-          OR department LIKE $2
-          OR department LIKE $3
-       ORDER BY created_at DESC`,
+      baseQuery + `
+        WHERE c.department = 'ALL'
+           OR c.department = $1
+           OR c.department LIKE $2
+           OR c.department LIKE $3
+        ORDER BY c.created_at DESC
+      `,
       [
         department,
         department + ",%",
@@ -126,6 +139,10 @@ app.post("/content", upload.single("media"), async (req, res) => {
         deptValue = String(departments);
       }
     }
+    deptValue = deptValue
+      .split(",")
+      .map(d => d.trim().toUpperCase())
+      .join(",");
 
     const media = req.file ? req.file.filename : null;
     const media_original_name = req.file ? req.file.originalname : null;
@@ -183,6 +200,37 @@ app.delete("/content/:id", async (req, res) => {
     res.send("Deleted");
   } catch (err) {
     console.error("DELETE CONTENT ERROR:", err);
+    res.status(500).send("DB error");
+  }
+});
+
+// ---------- SEARCH USER BY ID (ADMIN ONLY) ----------
+app.get("/users/search", async (req, res) => {
+  try {
+    const { admin, id } = req.query;
+
+    if (!isAdminEmail(admin)) {
+      return res.status(403).send("Admin only");
+    }
+
+    if (!id) {
+      return res.status(400).send("User ID required");
+    }
+
+    const result = await pool.query(
+      `SELECT id, email, username, role, department, blocked_until
+       FROM users
+       WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).send("User not found");
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("USER SEARCH ERROR:", err.message);
     res.status(500).send("DB error");
   }
 });

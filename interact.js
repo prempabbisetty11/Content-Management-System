@@ -10,6 +10,20 @@ app.controller("CmsController", function ($scope, $http) {
   $scope.content = {};
   $scope.departments = ["CSE", "ACSE", "ECE", "ALL"];
   $scope.selectedDepartments = [];
+
+  // Keep ALL mutually exclusive with specific departments
+  $scope.toggleDepartment = function (d) {
+    if (d === "ALL") {
+      $scope.selectedDepartments = ["ALL"];
+      $scope.deptAll = true;
+      return;
+    }
+    // selecting any specific clears ALL
+    $scope.deptAll = false;
+    const i = $scope.selectedDepartments.indexOf(d);
+    if (i === -1) $scope.selectedDepartments.push(d);
+    else $scope.selectedDepartments.splice(i, 1);
+  };
   $scope.login = { type: "" };
 
   $scope.loginMessage = "";
@@ -37,7 +51,12 @@ app.controller("CmsController", function ($scope, $http) {
   $scope.openPanel = function (panel) {
     $scope.activePanel = panel;
     $scope.menuOpen = false;
-    if (panel === "settings") $scope.loadUsers();
+
+    if (panel === "settings") {
+      $scope.loadUsers();
+      $scope.searchedUser = null;
+      $scope.searchErr = "";
+    }
   };
 
   $scope.closePanel = function () {
@@ -76,6 +95,7 @@ app.controller("CmsController", function ($scope, $http) {
         $scope.isLoggedIn = true;
         $scope.loginMessage = "Login successful";
         $scope.fetchContents();
+        setTimeout(() => $scope.fetchContents(), 300);
       })
       .catch((err) => {
         if (err && err.data) $scope.loginError = String(err.data);
@@ -181,10 +201,14 @@ app.controller("CmsController", function ($scope, $http) {
   $scope.openMedia = function (c) {
     if (!c || !c.media) return;
 
-    // log view once per open
+    // log view
     $scope.logView(c.id);
 
+    // open media
     window.open($scope.mediaUrl(c.media), "_blank");
+
+    // refresh counts shortly after
+    setTimeout(() => $scope.fetchContents(), 400);
   };
 
   // ---------- View logging ----------
@@ -281,6 +305,8 @@ app.controller("CmsController", function ($scope, $http) {
       return;
     }
 
+    $scope.newUser.department = $scope.newUser.department || "CSE";
+
     $http
       .post(API + "/users", {
         admin: $scope.user.email,
@@ -288,7 +314,8 @@ app.controller("CmsController", function ($scope, $http) {
         email: $scope.newUser.email,
         password: $scope.newUser.password,
         role: $scope.newUser.role,
-        username: $scope.newUser.username || $scope.newUser.id
+        username: $scope.newUser.username || $scope.newUser.id,
+        department: $scope.newUser.department
       })
       .then(() => {
         $scope.newUserMsg = "User created";
@@ -297,6 +324,37 @@ app.controller("CmsController", function ($scope, $http) {
       })
       .catch((e) => {
         $scope.newUserErr = String(e.data || "Create failed");
+      });
+  };
+
+  $scope.searchUser = function () {
+    if (!$scope.isAdmin) return;
+
+    $scope.searchedUser = null;
+    $scope.searchErr = "";
+
+    if (!$scope.searchUserId) {
+      $scope.searchErr = "Enter User ID";
+      return;
+    }
+
+    $http
+      .get(API + "/users/search", {
+        params: {
+          admin: $scope.user.email,
+          id: $scope.searchUserId.trim()
+        }
+      })
+      .then((res) => {
+        if (res.data) {
+          $scope.searchedUser = res.data;
+          $scope.activePanel = "settings";
+        } else {
+          $scope.searchErr = "No user found";
+        }
+      })
+      .catch(() => {
+        $scope.searchErr = "Search failed";
       });
   };
 });
