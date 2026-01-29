@@ -152,20 +152,44 @@ app.controller("CmsController", function ($scope, $http) {
   };
 
   $scope.editContent = function (item) {
+    // load content into form
     $scope.content = angular.copy(item);
+
+    // preload department selection
+    if (item.department) {
+      $scope.selectedDepartments = item.department.split(",");
+      $scope.deptAll = $scope.selectedDepartments.includes("ALL");
+    } else {
+      $scope.selectedDepartments = [];
+      $scope.deptAll = false;
+    }
+
+    // scroll to form for better UX
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   $scope.updateContent = function () {
+    if (!$scope.isAdmin) return;
+
+    const deptPayload =
+      $scope.selectedDepartments && $scope.selectedDepartments.length
+        ? $scope.selectedDepartments.join(",")
+        : "ALL";
+
     $http
       .put(API + "/content/" + $scope.content.id, {
         title: $scope.content.title,
         body: $scope.content.body,
-        author: $scope.user.email
+        author: $scope.user.email,
+        departments: deptPayload
       })
       .then(() => {
         $scope.content = {};
+        $scope.selectedDepartments = [];
+        $scope.deptAll = false;
         $scope.fetchContents();
-      });
+      })
+      .catch((e) => alert("Update failed: " + (e.data || "")));
   };
 
   $scope.deleteContent = function (id) {
@@ -450,4 +474,4 @@ document.addEventListener("mousemove", (e) => {
   document.addEventListener("mouseout", (e) => {
     if (e.target.closest(hoverSelector)) document.body.classList.remove("cursor-hover");
   });
-})();
+})(); 
