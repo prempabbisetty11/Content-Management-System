@@ -242,6 +242,52 @@ app.post("/users", async (req, res) => {
   }
 });
 
+// ---------- UPDATE USER (ADMIN ONLY) ----------
+app.put("/users/:id", async (req, res) => {
+  try {
+    const { admin, newUsername, newPassword, department } = req.body;
+
+    if (!isAdminEmail(admin)) {
+      return res.status(403).send("Admin only");
+    }
+
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (newUsername && newUsername.trim()) {
+      updates.push(`username = $${idx++}`);
+      values.push(newUsername.trim());
+    }
+
+    if (newPassword && newPassword.trim()) {
+      updates.push(`password = $${idx++}`);
+      values.push(newPassword.trim());
+    }
+
+    if (department && department.trim()) {
+      updates.push(`department = $${idx++}`);
+      values.push(department.trim().toUpperCase());
+    }
+
+    if (!updates.length) {
+      return res.status(400).send("Nothing to update");
+    }
+
+    values.push(req.params.id);
+
+    await pool.query(
+      `UPDATE users SET ${updates.join(", ")} WHERE id = $${idx}`,
+      values
+    );
+
+    res.send("User updated");
+  } catch (err) {
+    console.error("UPDATE USER ERROR:", err.message);
+    res.status(500).send("DB error");
+  }
+});
+
 // ---------- ROOT ----------
 app.get("/", (_, res) => {
   res.sendFile(path.join(__dirname, "page.html"));
