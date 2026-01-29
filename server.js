@@ -295,4 +295,57 @@ app.get("/", (_, res) => {
 
 // ---------- PORT ----------
 const PORT = process.env.PORT || 3000;
+// ---------- BLOCK USER (ADMIN ONLY) ----------
+app.post("/users/:id/block", async (req, res) => {
+  try {
+    const { admin, minutes } = req.body;
+
+    if (!isAdminEmail(admin)) {
+      return res.status(403).send("Admin only");
+    }
+
+    const mins = Number(minutes);
+    if (!mins || mins <= 0) {
+      return res.status(400).send("Valid block minutes required");
+    }
+
+    const blockedUntil = new Date(Date.now() + mins * 60 * 1000);
+
+    await pool.query(
+      "UPDATE users SET blocked_until = $1 WHERE id = $2",
+      [blockedUntil, req.params.id]
+    );
+
+    res.json({
+      message: "User blocked",
+      blocked_until: blockedUntil
+    });
+  } catch (err) {
+    console.error("BLOCK USER ERROR:", err.message);
+    res.status(500).send("Block failed");
+  }
+});
+
+
+// ---------- UNBLOCK USER (ADMIN ONLY) ----------
+app.post("/users/:id/unblock", async (req, res) => {
+  try {
+    const { admin } = req.body;
+
+    if (!isAdminEmail(admin)) {
+      return res.status(403).send("Admin only");
+    }
+
+    await pool.query(
+      "UPDATE users SET blocked_until = NULL WHERE id = $1",
+      [req.params.id]
+    );
+
+    res.json({ message: "User unblocked" });
+  } catch (err) {
+    console.error("UNBLOCK USER ERROR:", err.message);
+    res.status(500).send("Unblock failed");
+  }
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
