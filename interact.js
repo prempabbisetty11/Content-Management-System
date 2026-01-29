@@ -56,6 +56,17 @@ app.controller("CmsController", function ($scope, $http) {
       $scope.loadUsers();
       $scope.searchedUser = null;
       $scope.searchErr = "";
+
+      // Auto-scroll to Admin Settings section after render
+      setTimeout(() => {
+        const adminSection = document.querySelector(".admin-panel");
+        if (adminSection) {
+          adminSection.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+        }
+      }, 150);
     }
   };
 
