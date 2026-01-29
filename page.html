@@ -208,27 +208,10 @@
       <div ng-if="isAdmin" style="margin-top:10px;">
         <button type="button" ng-click="$event.stopPropagation(); editContent(c)">Edit</button>
         <button type="button" ng-click="$event.stopPropagation(); deleteContent(c.id)">Delete</button>
-        <button type="button" ng-click="$event.stopPropagation(); showViews(c)">Views</button>
       </div>
     </div>
   </div>
 
-  <!-- VIEW LOGS (ADMIN ONLY) -->
-  <div class="admin-panel" ng-if="isAdmin && viewLogsForContent" style="margin-top:20px;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h3 style="margin:0;">Views for: {{viewLogsForContent.title}}</h3>
-      <button type="button" ng-click="closeViews()">Close</button>
-    </div>
-
-    <div class="content-card" ng-if="viewLogs.length === 0">
-      No views yet.
-    </div>
-
-    <div class="content-card" ng-repeat="v in viewLogs">
-      <p><b>Viewer:</b> {{v.viewer_email}}</p>
-      <p><b>Viewed at:</b> {{v.viewed_at}}</p>
-    </div>
-  </div>
 
   <!-- PANEL: ADD NEW USER -->
   <div class="admin-panel" ng-if="isAdmin && activePanel==='addUser'" style="margin-top:20px;">
@@ -279,7 +262,7 @@
 
     <!-- SEARCH RESULT -->
     <div class="content-card" ng-if="searchedUser">
-      <h4>Search Result</h4>
+      
 
       <p><b>ID:</b> {{searchedUser.id}}</p>
       <p><b>Email:</b> {{searchedUser.email}}</p>
